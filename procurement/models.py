@@ -104,7 +104,7 @@ class RequisitionItem(models.Model):
         ordering = ["line_number"]
         constraints = [
             models.UniqueConstraint(fields=["requisition", "line_number"], name="uniq_pr_line"),
-            models.CheckConstraint(check=models.Q(quantity__gt=0), name="item_qty_positive"),
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name="item_qty_positive"),
         ]
 
     def save(self, *args, **kwargs) -> None:
