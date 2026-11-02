@@ -59,4 +59,6 @@ class UserAdminPermission(BasePermission):
             return False
         if view.action == "approvers":
             return True
+        if view.action == "destroy":
+            return role == User.Role.DEVELOPER  # deleting accounts is developer-only
         return role in User.ADMIN_ROLES

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import ProtectedError, QuerySet
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -182,14 +182,23 @@ class UserViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
-    """ADMIN: list users and change role / department / active flag."""
+    """ADMIN: list users and change role / department / active flag. DEVELOPER: also delete accounts."""
 
     queryset = User.objects.order_by("username")
     serializer_class = UserAdminSerializer
     permission_classes = [UserAdminPermission]
 
+    def perform_destroy(self, instance: User) -> None:
+        """Delete an account; refuse self-deletion and accounts that still own requests or approvals."""
+        if instance.pk == self.request.user.pk:
+            raise ValidationError("You cannot delete your own account.")
+        try:
+            instance.delete()
+        except ProtectedError:
+            raise ValidationError("This user has requests or approvals on record. Disable the account instead.")
     @action(detail=False, methods=["patch"], url_path="me/credentials", permission_classes=[IsAuthenticated])
     def credentials(self, request: Request) -> Response:
         """Change own username/password. The client must log in again afterwards."""
