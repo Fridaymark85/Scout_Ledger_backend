@@ -72,7 +72,9 @@ class RequisitionViewSet(viewsets.ModelViewSet):
         serializer.save()
 
     def perform_destroy(self, instance: Requisition) -> None:
-        self._assert_editable(instance)
+        """Requestors delete own drafts only; ADMIN/DEVELOPER can delete a request in any status."""
+        if self.request.user.role not in User.ADMIN_ROLES:
+            self._assert_editable(instance)
         instance.delete()
 
     @action(detail=True, methods=["post"])

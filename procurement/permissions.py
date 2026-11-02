@@ -24,7 +24,9 @@ class RequisitionPermission(BasePermission):
             return role == User.Role.REQUESTOR
         if view.action == "export":
             return role in (User.Role.PURCHASING_AGENT, *User.ADMIN_ROLES)
-        if view.action in ("update", "partial_update", "destroy", "submit"):
+        if view.action == "destroy":
+            return role == User.Role.REQUESTOR or role in User.ADMIN_ROLES  # admins may delete any request
+        if view.action in ("update", "partial_update", "submit"):
             return role == User.Role.REQUESTOR
         return request.method in SAFE_METHODS
 
