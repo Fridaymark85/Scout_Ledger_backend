@@ -23,7 +23,7 @@ class RequisitionPermission(BasePermission):
         if view.action == "create":
             return role == User.Role.REQUESTOR
         if view.action == "export":
-            return role in (User.Role.PURCHASING_AGENT, User.Role.ADMIN)
+            return role in (User.Role.PURCHASING_AGENT, *User.ADMIN_ROLES)
         if view.action in ("update", "partial_update", "destroy", "submit"):
             return role == User.Role.REQUESTOR
         return request.method in SAFE_METHODS
@@ -38,13 +38,13 @@ class ApprovalStepPermission(BasePermission):
         if role is None:
             return False
         if view.action == "reassign":
-            return role == User.Role.ADMIN
+            return role in User.ADMIN_ROLES
         if request.method in SAFE_METHODS:
             return True
-        return role in (User.Role.SENIOR_APPROVER, User.Role.ADMIN)
+        return role in (User.Role.SENIOR_APPROVER, *User.ADMIN_ROLES)
 
     def has_object_permission(self, request: Request, view, obj) -> bool:
-        if request.method in SAFE_METHODS or _role(request) == User.Role.ADMIN:
+        if request.method in SAFE_METHODS or _role(request) in User.ADMIN_ROLES:
             return True
         # Approvers may only act on their own step.
         return obj.approver_id == request.user.id
@@ -59,4 +59,4 @@ class UserAdminPermission(BasePermission):
             return False
         if view.action == "approvers":
             return True
-        return role == User.Role.ADMIN
+        return role in User.ADMIN_ROLES

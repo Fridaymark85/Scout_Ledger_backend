@@ -17,7 +17,10 @@ class User(AbstractUser):
         SENIOR_APPROVER = "SENIOR_APPROVER", "Senior approver"
         ADMIN = "ADMIN", "Admin"
         PURCHASING_AGENT = "PURCHASING_AGENT", "Purchasing agent"
+        DEVELOPER = "DEVELOPER", "Developer"  # superset of ADMIN, for support and recovery
 
+    # Roles with full administrative control.
+    ADMIN_ROLES = ("ADMIN", "DEVELOPER")
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.REQUESTOR)
     department = models.CharField(max_length=100, blank=True)
 

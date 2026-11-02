@@ -136,7 +136,7 @@ class ApprovalStepViewSet(
         if req.status != Requisition.Status.PENDING or step.status != ApprovalStep.Status.PENDING:
             raise ValidationError("This step is no longer actionable.")
         # Sequential chain for approvers; the admin may override the order.
-        is_admin = self.request.user.role == User.Role.ADMIN
+        is_admin = self.request.user.role in User.ADMIN_ROLES
         if not is_admin and req.steps.filter(step_order__lt=step.step_order).exclude(
             status=ApprovalStep.Status.APPROVED
         ).exists():

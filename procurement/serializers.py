@@ -178,7 +178,15 @@ class UserAdminSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "first_name", "last_name", "email", "role", "department", "is_active"]
         read_only_fields = ["username"]
 
-
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Only a developer may grant the DEVELOPER role or modify a developer account."""
+        actor = self.context["request"].user
+        if actor.role != User.Role.DEVELOPER:
+            if attrs.get("role") == User.Role.DEVELOPER:
+                raise serializers.ValidationError({"role": "Only a developer can grant this role."})
+            if self.instance is not None and self.instance.role == User.Role.DEVELOPER:
+                raise serializers.ValidationError("Developer accounts can only be changed by a developer.")
+        return attrs
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """Public sign-up. The first user ever becomes an active ADMIN; everyone after is a locked REQUESTOR."""
 
