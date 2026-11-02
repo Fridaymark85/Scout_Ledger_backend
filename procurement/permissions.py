@@ -14,7 +14,7 @@ def _role(request: Request) -> str | None:
 
 
 class RequisitionPermission(BasePermission):
-    """Read: any authenticated user. Create: REQUESTOR only. Edit/delete/submit: requestor (owner via queryset)."""
+    """Read: any authenticated user. Create: REQUESTOR only. Edit/submit: requestor (owner). Delete: owner, admin, developer."""
 
     def has_permission(self, request: Request, view) -> bool:
         role = _role(request)
@@ -23,9 +23,9 @@ class RequisitionPermission(BasePermission):
         if view.action == "create":
             return role == User.Role.REQUESTOR
         if view.action == "export":
-            return role in (User.Role.PURCHASING_AGENT, *User.ADMIN_ROLES)
+            return role in User.ADMIN_ROLES
         if view.action == "destroy":
-            return role == User.Role.REQUESTOR or role in User.ADMIN_ROLES  # admins may delete any request
+            return role == User.Role.REQUESTOR or role in User.ADMIN_ROLES  # owner (via queryset), admin, developer
         if view.action in ("update", "partial_update", "submit"):
             return role == User.Role.REQUESTOR
         return request.method in SAFE_METHODS

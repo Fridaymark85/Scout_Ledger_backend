@@ -14,9 +14,8 @@ class User(AbstractUser):
 
     class Role(models.TextChoices):
         REQUESTOR = "REQUESTOR", "Requestor"
-        SENIOR_APPROVER = "SENIOR_APPROVER", "Senior approver"
-        ADMIN = "ADMIN", "Admin"
-        PURCHASING_AGENT = "PURCHASING_AGENT", "Purchasing agent"
+        SENIOR_APPROVER = "SENIOR_APPROVER", "Approver"
+        ADMIN = "ADMIN", "Purchasing admin"
         DEVELOPER = "DEVELOPER", "Developer"  # superset of ADMIN, for support and recovery
 
     # Roles with full administrative control.
@@ -82,7 +81,7 @@ class RequisitionItem(models.Model):
     unit_of_measure = models.CharField(max_length=3)
 
     # Material-only
-    material_number = models.CharField(max_length=18, blank=True)  # S/X code from the digitizer
+    material_number = models.CharField(max_length=18, blank=True)  # S/X code entered by the requestor (mandatory for materials)
     delivery_date = models.DateField(null=True, blank=True)
     purchasing_group = models.CharField(max_length=3, default="77")
     total_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)

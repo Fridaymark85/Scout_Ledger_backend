@@ -13,12 +13,13 @@ from .models import Requisition, RequisitionItem
 
 # SAP field names for exactly the values the request form collects (nothing else is exported).
 COLUMNS: tuple[str, ...] = (
-    "EKGRP", "TXZ01", "MENGE", "MEINS", "NETPR", "WERKS",
+    "MATNR", "EKGRP", "TXZ01", "MENGE", "MEINS", "NETPR", "WERKS",
     "LGORT", "KOSTL", "EEIND", "MATKL", "AFNAM", "WAERS",
 )
 
 # Plain-English meaning of each SAP code (shown as header hover notes and on the Field_Guide sheet).
 FIELD_LABELS: dict[str, str] = {
+    "MATNR": "Material code (S/X code, materials only)",
     "EKGRP": "Purchasing group (buyer group)",
     "TXZ01": "Short text / description of the item (max 40 characters)",
     "MENGE": "Quantity requested",
@@ -72,6 +73,7 @@ def generate_requisition_workbook(requisition: Requisition) -> io.BytesIO:
 
     for item in requisition.items.all():
         row = [
+            item.material_number,
             item.purchasing_group, item.short_text,
             item.quantity, item.unit_of_measure, _unit_price(item), item.plant,
             item.storage_location, item.cost_center,

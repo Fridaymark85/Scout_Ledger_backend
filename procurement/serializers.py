@@ -1,6 +1,7 @@
 """DRF serializers for requisitions, items and approval steps."""
 from __future__ import annotations
 
+import re
 import uuid
 from decimal import Decimal
 from typing import Any
@@ -44,15 +45,17 @@ class RequisitionItemSerializer(SanitizedSerializerMixin, serializers.ModelSeria
             "storage_location", "requisitioner", "material_group",
             "gross_price", "currency", "cost_center",
         ]
-        # S/X code comes from the digitizer, never from the requestor.
-        read_only_fields = ["material_number"]
+        # S/X code is typed by the requestor (validated below for materials).
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Each item type must supply its own mandatory fields."""
         if attrs["item_type"] == RequisitionItem.ItemType.MATERIAL:
-            required = ["delivery_date", "total_value", "requisitioner", "material_group"]
+            required = ["material_number", "delivery_date", "total_value", "requisitioner", "material_group"]
         else:
             required = ["gross_price", "cost_center"]
+        code = attrs.get("material_number", "")
+        if attrs["item_type"] == RequisitionItem.ItemType.MATERIAL and code and not re.fullmatch(r"[SX][A-Za-z0-9]+", code):
+            raise serializers.ValidationError({"material_number": "S/X code must start with S or X followed by letters/digits."})
         missing = {f: "This field is required." for f in required if not attrs.get(f)}
         if missing:
             raise serializers.ValidationError(missing)
@@ -179,14 +182,18 @@ class UserAdminSerializer(serializers.ModelSerializer):
         read_only_fields = ["username"]
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        """Only a developer may grant the DEVELOPER role or modify a developer account."""
+        """The DEVELOPER role is unique: nobody can be granted it, and it cannot be removed here."""
         actor = self.context["request"].user
-        if actor.role != User.Role.DEVELOPER:
-            if attrs.get("role") == User.Role.DEVELOPER:
-                raise serializers.ValidationError({"role": "Only a developer can grant this role."})
-            if self.instance is not None and self.instance.role == User.Role.DEVELOPER:
-                raise serializers.ValidationError("Developer accounts can only be changed by a developer.")
+        new_role = attrs.get("role")
+        current = self.instance.role if self.instance is not None else None
+        if new_role == User.Role.DEVELOPER and current != User.Role.DEVELOPER:
+            raise serializers.ValidationError({"role": "There is only one developer account."})
+        if current == User.Role.DEVELOPER and new_role not in (None, User.Role.DEVELOPER):
+            raise serializers.ValidationError({"role": "The developer role cannot be changed."})
+        if actor.role != User.Role.DEVELOPER and current == User.Role.DEVELOPER:
+            raise serializers.ValidationError("Developer accounts can only be changed by a developer.")
         return attrs
+
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """Public sign-up. The first user ever becomes an active ADMIN; everyone after is a locked REQUESTOR."""
 
@@ -231,6 +238,7 @@ class UpdateCredentialsSerializer(serializers.Serializer):
 
     current_password = serializers.CharField(write_only=True, style={"input_type": "password"})
     username = serializers.CharField(required=False, max_length=150)
+    email = serializers.EmailField(required=False, max_length=254)
     password = serializers.CharField(required=False, write_only=True, style={"input_type": "password"})
 
     def validate_current_password(self, value: str) -> str:
@@ -247,8 +255,8 @@ class UpdateCredentialsSerializer(serializers.Serializer):
         return value
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        if "username" not in attrs and "password" not in attrs:
-            raise serializers.ValidationError("Provide a new username and/or a new password.")
+        if not {"username", "email", "password"} & attrs.keys():
+            raise serializers.ValidationError("Provide a new username, email and/or password.")
         if "password" in attrs:
             user = self.context["request"].user
             validate_password(attrs["password"], user)
@@ -258,6 +266,8 @@ class UpdateCredentialsSerializer(serializers.Serializer):
         user = self.context["request"].user
         if "username" in self.validated_data:
             user.username = self.validated_data["username"]
+        if "email" in self.validated_data:
+            user.email = self.validated_data["email"]
         if "password" in self.validated_data:
             user.set_password(self.validated_data["password"])
         user.save()
@@ -265,7 +275,7 @@ class UpdateCredentialsSerializer(serializers.Serializer):
 
 
 class ReassignSerializer(serializers.Serializer):
-    """Admin hands a pending approval step to another senior approver."""
+    """Admin hands a pending approval step to another approver."""
 
     approver_id = serializers.IntegerField()
 

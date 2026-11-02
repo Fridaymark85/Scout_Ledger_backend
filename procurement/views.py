@@ -72,9 +72,7 @@ class RequisitionViewSet(viewsets.ModelViewSet):
         serializer.save()
 
     def perform_destroy(self, instance: Requisition) -> None:
-        """Requestors delete own drafts only; ADMIN/DEVELOPER can delete a request in any status."""
-        if self.request.user.role not in User.ADMIN_ROLES:
-            self._assert_editable(instance)
+        """Owner (queryset-scoped), ADMIN and DEVELOPER can delete a request in any status."""
         instance.delete()
 
     @action(detail=True, methods=["post"])
@@ -157,7 +155,7 @@ class ApprovalStepViewSet(
 
     @action(detail=True, methods=["post"])
     def reassign(self, request: Request, pk: str | None = None) -> Response:
-        """ADMIN: hand a still-pending step to a different senior approver."""
+        """ADMIN: hand a still-pending step to a different approver."""
         step = self.get_object()
         ser = ReassignSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
@@ -230,6 +228,6 @@ class UserViewSet(
 
     @action(detail=False, methods=["get"])
     def approvers(self, request: Request) -> Response:
-        """Active senior approvers (id + name only) for the submit-chain picker."""
+        """Active approvers (id + name only) for the submit-chain picker."""
         qs = User.objects.filter(role=User.Role.SENIOR_APPROVER, is_active=True)
         return Response([{"id": u.id, "name": u.get_full_name() or u.username} for u in qs])
